@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using QuoteBook.Data;
 using QuoteBook.Data.Entities;
 using QuoteBook.Features;
+using QuoteBook.Features.Quotes;
 
 namespace QuoteBook.Controllers
 {
@@ -24,8 +25,7 @@ namespace QuoteBook.Controllers
             _quoteRepository = quoteRepository;
         }
 
-        // GET: api/Quotes
-        [HttpGet]
+        [HttpGet()]
         public async Task<ActionResult<IEnumerable<Quote>>> GetQuotes()
         {
             return await _context.Quotes.ToListAsync();
@@ -41,55 +41,85 @@ namespace QuoteBook.Controllers
                 return NotFound();
             }
 
-            if (_quoteRepository.IsQuoteNSFW(quote.Id))
+            return quote;
+        }
+
+        [HttpGet("random-nsfw")]
+        public async Task<ActionResult<Quote>> GetRandomNSFWQuote()
+        {
+            return _quoteRepository.RandomQuote();
+        }
+
+        [HttpGet("random-non-nsfw")]
+        public async Task<ActionResult<Quote>> GetRandomQuote()
+        {
+            return _quoteRepository.RandomNonNSFWQuote();
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutQuote(int id, QuoteEditDto quoteDto)
+        {
+            var quote = await _context.Quotes.FindAsync(id);
+            if(quote == null)
             {
                 return NotFound();
             }
 
-            return quote;
-        }
+            quote.Quotee = quoteDto.Quotee;
+            quote.Message = quoteDto.Message;
+            quote.Author = quoteDto.Author;
+            quote.Time = quoteDto.Time;
+            quote.NSFW = quoteDto.NSFW;
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutQuote(int id, Quote quote)
-        {
-            if (id != quote.Id)
+            using (var transaction = _context.Database.BeginTransaction())
             {
-                return BadRequest();
-            }
+                _context.Entry(quote).State = EntityState.Modified;
 
-            _context.Entry(quote).State = EntityState.Modified;
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!_quoteRepository.QuoteExists(id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
 
-            try
-            {
                 await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!QuoteExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                await transaction.CommitAsync();
             }
 
             return NoContent();
         }
 
-        // POST: api/Quotes
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Quote>> PostQuote(Quote quote)
+        public async Task<ActionResult<Quote>> PostQuote(QuoteCreateDto quoteDto)
         {
-            _context.Quotes.Add(quote);
-            await _context.SaveChangesAsync();
+            Quote quote = new Quote{ 
+                Quotee = quoteDto.Quotee,
+                Message = quoteDto.Message,
+                Author = quoteDto.Author,
+                Time = DateTimeOffset.Now,
+                NSFW = quoteDto.NSFW
+            };
+
+            using(var transaction = _context.Database.BeginTransaction())
+            {
+                _context.Quotes.Add(quote);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
 
             return CreatedAtAction("GetQuote", new { id = quote.Id }, quote);
         }
 
-        // DELETE: api/Quotes/5
+        
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteQuote(int id)
         {
@@ -105,9 +135,5 @@ namespace QuoteBook.Controllers
             return NoContent();
         }
 
-        private bool QuoteExists(int id)
-        {
-            return _context.Quotes.Any(e => e.Id == id);
-        }
     }
 }

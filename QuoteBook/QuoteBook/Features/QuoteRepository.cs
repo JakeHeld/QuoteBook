@@ -13,6 +13,36 @@ namespace QuoteBook.Features
         }
 
         /// <summary>
+        /// Gets any non-NSFW quote.
+        /// </summary>
+        /// <returns></returns>
+        public Quote RandomNonNSFWQuote()
+        {
+            Quote quote = null;
+            var rand = new Random();
+            bool isNSFW = true;
+            while(isNSFW)
+            {
+                quote = _context.Quotes.ElementAt(rand.Next(_context.Quotes.Count()));
+                if(!quote.NSFW)
+                {
+                    isNSFW = false;
+                }
+            }
+            return quote;
+        }
+
+        /// <summary>
+        /// Gets any quote. NSFW or not.
+        /// </summary>
+        /// <returns></returns>
+        public Quote RandomQuote()
+        {
+            var rand = new Random();
+            return _context.Quotes.ElementAt(rand.Next(_context.Quotes.Count()));
+        }
+
+        /// <summary>
         /// Checks the dataContext to see if the desired quote id exists.
         /// </summary>
         /// <param name="id"></param>
