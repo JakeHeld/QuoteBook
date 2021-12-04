@@ -1,9 +1,14 @@
-﻿using QuoteBook.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using QuoteBook.Data;
 using QuoteBook.Data.Entities;
+using QuoteBook.Features.Quotes;
+using System.Linq.Expressions;
+
 
 namespace QuoteBook.Features
 {
-    public class QuoteRepository
+    public abstract class QuoteRepository<T> : IQuoteRepository<T> where T : class
     {
         private readonly DataContext _context;       
 
@@ -12,96 +17,95 @@ namespace QuoteBook.Features
             _context = context;
         }
 
-        /// <summary>
-        /// Gets any non-NSFW quote.
-        /// </summary>
-        /// <returns></returns>
-        public Quote RandomNonNSFWQuote()
+        public IQueryable<T> GetByCondition(Expression<Func<T, bool>> expression)
         {
-            Quote quote = null;
-            var rand = new Random();
-            bool isNSFW = true;
-            while(isNSFW)
+            return _context.Set<T>().Where(expression).AsNoTracking();
+        }
+
+        public async Task<bool> Create(QuoteCreateDto entity)
+        {
+            Quote quote = new Quote {
+                Quotee = entity.Quotee,
+                Message = entity.Message,
+                Author = entity.Author,
+                Time = DateTimeOffset.Now,
+                NSFW = entity.NSFW
+            };
+
+            using (var transaction = _context.Database.BeginTransaction())
             {
-                quote = _context.Quotes.ElementAt(rand.Next(_context.Quotes.Count()));
-                if(!quote.NSFW)
+                _context.Quotes.Add(quote);
+                try
                 {
-                    isNSFW = false;
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    return false;
                 }
             }
-            return quote;
+            return true;
         }
 
-        /// <summary>
-        /// Gets any quote. NSFW or not.
-        /// </summary>
-        /// <returns></returns>
-        public Quote RandomQuote()
+        public async Task<bool> Update(int id, QuoteEditDto entity)
         {
-            var rand = new Random();
-            return _context.Quotes.ElementAt(rand.Next(_context.Quotes.Count()));
-        }
-
-        /// <summary>
-        /// Checks the dataContext to see if the desired quote id exists.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public bool QuoteExists(int id)
-        {
-            return _context.Quotes.Any(e => e.Id == id);
-        }
-
-        /// <summary>
-        /// Returns the number of quotes that contain NSFW content.
-        /// </summary>
-        /// <returns></returns>
-        public int NumberOfNSFWQuotes()
-        {
-            return _context.Quotes.Count(x => x.NSFW == true);
-        }
-
-        /// <summary>
-        /// Returns the number of quotes that do not contain NSFW content.
-        /// </summary>
-        /// <returns></returns>
-        public int NumberOfNonNSFWQuotes()
-        {
-            return _context.Quotes.Count(x => x.NSFW != false);
-        }
-
-        /// <summary>
-        /// Returns the total number of quotes.
-        /// </summary>
-        /// <returns></returns>
-        public int NumberOfTotalQuotes()
-        {
-            return _context.Quotes.Count();
-        }
-
-        /// <summary>
-        /// Returns the quote, that has the associated id, from the database.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public async Task<Quote> GetQuote(int id)
-        {
-            Quote quote = await _context.Quotes.FindAsync(id);
-            return quote;
-        }
-
-        /// <summary>
-        /// Returns if the quote, that has the associated id, is NSFW or not. 
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public bool IsQuoteNSFW(int id)
-        {
-            Quote quote = null;
-            if((quote = GetQuote(id).Result) != null){
-                return quote.NSFW;
+            if (entity == null)
+            {
+                return false;
             }
-            return false;
+
+            Quote? quote = await _context.Quotes.FindAsync(id);
+            if (quote == null)
+            {
+                return false;
+            }
+
+            quote.Quotee = entity.Quotee;
+            quote.Message = entity.Message;
+            quote.Author = entity.Author;
+            quote.Time = entity.Time;
+            quote.NSFW = entity.NSFW;
+
+            using (var transaction = _context.Database.BeginTransaction())
+            {
+                
+                _context.Entry(quote).State = EntityState.Modified;
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public async Task<bool> Delete(int id)
+        {
+            Quote? quote = await _context.Quotes.FindAsync(id);
+            if (quote == null)
+            {
+                return false;
+            }
+
+            using (var transaction = _context.Database.BeginTransaction())
+            {
+                _context.Quotes.Remove(quote);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }
