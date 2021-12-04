@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using QuoteBook.Data;
 using QuoteBook.Data.Entities;
 using QuoteBook.Features.Quotes;
