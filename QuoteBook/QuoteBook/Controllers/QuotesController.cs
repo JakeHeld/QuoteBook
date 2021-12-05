@@ -46,7 +46,7 @@ namespace QuoteBook.Controllers
             Quote? quote = null;
             while(quote == null)
             {
-                quote = (Quote)_quoteRepository.GetByCondition(x => x.Id == rand.Next()).Cast<Quote>();
+                quote = (Quote)_quoteRepository.GetByCondition(x => x.Id == rand.Next(_context.Quotes.Count())).Cast<Quote>();
             }
             return quote;
         }
@@ -58,7 +58,7 @@ namespace QuoteBook.Controllers
             Quote? quote = null;
             while (quote == null)
             {
-                quote = (Quote)_quoteRepository.GetByCondition(x => x.Id == rand.Next() && x.NSFW == false).Cast<Quote>();
+                quote = (Quote)_quoteRepository.GetByCondition(x => x.Id == rand.Next(_context.Quotes.Count()) && x.NSFW == false).Cast<Quote>();
             }
             return quote;
         }
