@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using QuoteBook.Data;
 using QuoteBook.Data.Entities;
 using QuoteBook.Features;
@@ -6,11 +7,12 @@ using QuoteBook.Features;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(config =>
+{
+    config.SwaggerDoc("v1", new OpenApiInfo { Title = "QuoteBook API", Version = "v1" });
+});
 
 builder.Services.AddDbContext<DataContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DataContext")));
 builder.Services.AddScoped<IQuoteRepository<Quote>, QuoteRepository<Quote>>();
@@ -21,7 +23,10 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(config =>
+    {
+        config.SwaggerEndpoint("/swagger/v1/swagger.json", "QuoteBook API V1");
+    });
 }
 
 using (var scope = app.Services.CreateScope())
