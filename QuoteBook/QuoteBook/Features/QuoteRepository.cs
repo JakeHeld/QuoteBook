@@ -1,15 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using log4net;
+using Microsoft.EntityFrameworkCore;
 using QuoteBook.Data;
 using QuoteBook.Data.Entities;
 using QuoteBook.Features.Quotes;
 using System.Linq.Expressions;
 
-
 namespace QuoteBook.Features
 {
     public abstract class QuoteRepository<T> : IQuoteRepository<T> where T : class
     {
-        private readonly DataContext _context;       
+        private readonly DataContext _context;
+        private static readonly ILog logger = LogManager.GetLogger(typeof(QuoteRepository<Quote>));
 
         public QuoteRepository(DataContext context)
         {
@@ -41,6 +42,7 @@ namespace QuoteBook.Features
                 }
                 catch (Exception ex)
                 {
+                    logger.Error(ex.ToString());
                     return false;
                 }
             }
@@ -68,7 +70,6 @@ namespace QuoteBook.Features
 
             using (var transaction = _context.Database.BeginTransaction())
             {
-                
                 _context.Entry(quote).State = EntityState.Modified;
                 try
                 {
@@ -77,6 +78,7 @@ namespace QuoteBook.Features
                 }
                 catch (Exception ex)
                 {
+                    logger.Error(ex.ToString());
                     return false;
                 }
             }
@@ -101,6 +103,7 @@ namespace QuoteBook.Features
                 }
                 catch (Exception ex)
                 {
+                    logger.Error(ex.ToString());
                     return false;
                 }
             }
